@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const morgan = require("morgan");
@@ -11,8 +12,8 @@ app.use(compression());
 
 // init db
 require("./dbs/init.mongodb");
-const { checkOverload } = require("./helpers/check.connect");
-checkOverload();
+// const { checkOverload } = require("./helpers/check.connect");
+// checkOverload();
 
 // init routes
 app.get("/", (req, res) => {
