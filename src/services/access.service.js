@@ -2,9 +2,15 @@ const shopModel = require("../models/shop.model");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const KeyTokenService = require("./keyToken.service");
-const { createTokenPair } = require("../auth/authUtils");
+const { createTokenPair, verifyJWT } = require("../auth/authUtils");
 const { getInfoData } = require("../utils");
-const { BadRequestError } = require("../core/error.response");
+const {
+  BadRequestError,
+  AuthFailureError,
+  ForbiddenError,
+} = require("../core/error.response");
+const shopService = require("./shop.service");
+const keyTokenModel = require("../models/keytoken.model");
 
 const RoleShop = {
   SHOP: "SHOP",
@@ -14,6 +20,94 @@ const RoleShop = {
 };
 
 class AccessService {
+  static handleRefreshToken = async (refreshToken) => {
+    const foundToken =
+      await KeyTokenService.findByRefreshTokenUsed(refreshToken);
+    if (foundToken) {
+      const { userId, email } = await verifyJWT(
+        refreshToken,
+        foundToken.privateKey,
+      );
+      await KeyTokenService.deleteKeyById(userId);
+      throw new ForbiddenError("Something went wrong please re-login");
+    }
+
+    const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+    if (!holderToken) {
+      throw new AuthFailureError("Invalid refresh token");
+    }
+
+    const { userId, email } = await verifyJWT(
+      refreshToken,
+      holderToken.privateKey,
+    );
+
+    const foundShop = await shopService.findByEmail({ email });
+    if (!foundShop) {
+      throw new AuthFailureError("Shop not found");
+    }
+
+    const tokens = await createTokenPair(
+      { userId, email },
+      holderToken.privateKey,
+      holderToken.publicKey,
+    );
+
+    await keyTokenModel.updateOne(
+      { _id: holderToken._id },
+      {
+        $set: { refreshToken: tokens.refreshToken },
+        $addToSet: { refreshTokensUsed: refreshToken },
+      },
+    );
+    return {
+      user: { userId, email },
+      tokens,
+    };
+  };
+
+  static logout = async ({ keyStore }) => {
+    const delKey = await KeyTokenService.removeKeyById(keyStore._id);
+    return delKey;
+  };
+
+  static login = async ({ email, password, refreshToken = null }) => {
+    const foundShop = await shopService.findByEmail({ email });
+    if (!foundShop) {
+      throw new BadRequestError("Shop not found");
+    }
+
+    const match = await bcrypt.compare(password, foundShop.password);
+    if (!match) {
+      throw new AuthFailureError("Authentication failed");
+    }
+
+    const publicKey = crypto.randomBytes(64).toString("hex");
+    const privateKey = crypto.randomBytes(64).toString("hex");
+
+    const { _id: userId } = foundShop;
+    const tokens = await createTokenPair(
+      { userId, email },
+      privateKey,
+      publicKey,
+    );
+
+    await KeyTokenService.createKeyToken({
+      userId,
+      publicKey,
+      privateKey,
+      refreshToken: tokens.refreshToken,
+    });
+
+    return {
+      shop: getInfoData({
+        fields: ["_id", "name", "email"],
+        object: foundShop,
+      }),
+      tokens,
+    };
+  };
+
   static signUp = async ({ name, email, password }) => {
     // step1: check email exists?
     const holderShop = await shopModel.findOne({ email }).lean();
@@ -47,17 +141,15 @@ class AccessService {
       const tokens = await createTokenPair(
         { userId: newShop._id, email },
         privateKey,
+        publicKey,
       );
 
       return {
-        code: 201,
-        metadata: {
-          shop: getInfoData({
-            fields: ["_id", "name", "email"],
-            object: newShop,
-          }),
-          tokens,
-        },
+        shop: getInfoData({
+          fields: ["_id", "name", "email"],
+          object: newShop,
+        }),
+        tokens,
       };
     }
 
