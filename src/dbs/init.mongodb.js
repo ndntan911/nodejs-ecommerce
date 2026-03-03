@@ -3,10 +3,10 @@
 const mongoose = require("mongoose");
 const { countConnect } = require("../helpers/check.connect");
 const {
-  db: { host, port, name },
+  db: { host, port, name, username, password },
 } = require("../configs/config.mongodb");
 
-const connectString = `mongodb://${host}:${port}/${name}`;
+const connectString = `mongodb://${username}:${password}@${host}:${port}/${name}`;
 
 class Database {
   constructor() {
@@ -22,6 +22,7 @@ class Database {
     mongoose
       .connect(connectString, {
         maxPoolSize: 50,
+        authSource: "admin",
       })
       .then(() => {
         console.log("Connected to MongoDB", connectString);
