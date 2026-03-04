@@ -20,27 +20,17 @@ const RoleShop = {
 };
 
 class AccessService {
-  static handleRefreshToken = async (refreshToken) => {
-    const foundToken =
-      await KeyTokenService.findByRefreshTokenUsed(refreshToken);
-    if (foundToken) {
-      const { userId, email } = await verifyJWT(
-        refreshToken,
-        foundToken.privateKey,
-      );
+  static handleRefreshToken = async ({ refreshToken, keyStore, user }) => {
+    const { userId, email } = user;
+
+    if (keyStore.refreshTokensUsed.includes(refreshToken)) {
       await KeyTokenService.deleteKeyById(userId);
       throw new ForbiddenError("Something went wrong please re-login");
     }
 
-    const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
-    if (!holderToken) {
+    if (keyStore.refreshToken !== refreshToken) {
       throw new AuthFailureError("Invalid refresh token");
     }
-
-    const { userId, email } = await verifyJWT(
-      refreshToken,
-      holderToken.privateKey,
-    );
 
     const foundShop = await shopService.findByEmail({ email });
     if (!foundShop) {
@@ -49,19 +39,19 @@ class AccessService {
 
     const tokens = await createTokenPair(
       { userId, email },
-      holderToken.privateKey,
-      holderToken.publicKey,
+      keyStore.privateKey,
+      keyStore.publicKey,
     );
 
     await keyTokenModel.updateOne(
-      { _id: holderToken._id },
+      { _id: keyStore._id },
       {
         $set: { refreshToken: tokens.refreshToken },
         $addToSet: { refreshTokensUsed: refreshToken },
       },
     );
     return {
-      user: { userId, email },
+      user,
       tokens,
     };
   };
