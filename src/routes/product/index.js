@@ -10,11 +10,14 @@ router.get(
   "/search/:keySearch",
   asyncHandler(productController.getListSearchProduct),
 );
+router.get("", asyncHandler(productController.findAllProducts));
+router.get("/:id", asyncHandler(productController.findProduct));
 
 // authentication
 router.use(authentication);
 
 router.post("", asyncHandler(productController.createProduct));
+router.patch("/:id", asyncHandler(productController.updateProduct));
 router.post(
   "/publish/:id",
   asyncHandler(productController.publishProductByShop),

@@ -68,9 +68,8 @@ const productSchema = new Schema(
 );
 
 productSchema.index({ product_name: "text", product_description: "text" });
-productSchema.pre("save", function (next) {
+productSchema.pre("save", async function () {
   this.product_slug = slugify(this.product_name, { lower: true });
-  next();
 });
 
 // define the product type = clothing

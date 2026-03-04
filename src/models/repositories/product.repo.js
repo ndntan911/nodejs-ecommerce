@@ -1,4 +1,5 @@
 const { product } = require("../product.model");
+const { getSelectData, getUnSelectData } = require("../../utils");
 
 const findAllDraftsForShop = async ({ query, limit = 50, skip = 0 }) => {
   return await queryProduct({ query, limit, skip });
@@ -44,6 +45,34 @@ const unPublishProductByShop = async ({ product_shop, product_id }) => {
   return modifiedCount;
 };
 
+const findAllProducts = async ({ limit, sort, page, filter, select }) => {
+  const skip = (page - 1) * limit;
+  const sortBy = sort === "ctime" ? { createdAt: -1 } : { updatedAt: -1 };
+  const products = await product
+    .find(filter)
+    .sort(sortBy)
+    .skip(skip)
+    .limit(limit)
+    .select(getSelectData(select))
+    .lean();
+  return products;
+};
+
+const findProduct = async ({ product_id, unSelect = [] }) => {
+  return await product.findById(product_id).select(getUnSelectData(unSelect));
+};
+
+const updateProductById = async ({
+  product_id,
+  payload,
+  model,
+  isNew = true,
+}) => {
+  return await model.findByIdAndUpdate(product_id, payload, {
+    new: isNew,
+  });
+};
+
 const queryProduct = async ({ query, limit = 50, skip = 0 }) => {
   return await product
     .find(query)
@@ -60,4 +89,7 @@ module.exports = {
   findAllPublishedForShop,
   unPublishProductByShop,
   searchProductsByUser,
+  findAllProducts,
+  findProduct,
+  updateProductById,
 };

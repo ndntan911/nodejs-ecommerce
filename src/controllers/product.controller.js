@@ -64,6 +64,32 @@ class ProductController {
       }),
     }).send(res);
   };
+
+  findAllProducts = async (req, res, next) => {
+    new SuccessResponse({
+      message: "Get list products successfully",
+      metadata: await ProductService.findAllProducts(req.query),
+    }).send(res);
+  };
+
+  findProduct = async (req, res, next) => {
+    new SuccessResponse({
+      message: "Get product successfully",
+      metadata: await ProductService.findProduct({
+        product_id: req.params.id,
+      }),
+    }).send(res);
+  };
+
+  updateProduct = async (req, res, next) => {
+    new SuccessResponse({
+      message: "Update product successfully",
+      metadata: await ProductService.updateProduct({
+        product_id: req.params.id,
+        payload: { ...req.body, product_shop: req.user.userId },
+      }),
+    }).send(res);
+  };
 }
 
 module.exports = new ProductController();
