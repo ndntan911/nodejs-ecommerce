@@ -9,7 +9,7 @@ const runProducer = async () => {
 
         const queueName = 'test-topic'
         await channel.assertQueue(queueName, {
-            durable: false
+            durable: true
         })
 
         channel.sendToQueue(queueName, Buffer.from(message))
