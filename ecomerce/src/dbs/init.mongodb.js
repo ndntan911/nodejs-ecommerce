@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const { countConnect } = require("../helpers/check.connect");
 const {
   db: { host, port, name, username, password },
-} = require("../configs/config.mongodb");
+} = require("../configs/mongodb.config");
 
 const connectString = `mongodb://${username}:${password}@${host}:${port}/${name}`;
 
